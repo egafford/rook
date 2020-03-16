@@ -61,6 +61,7 @@ const (
 	crushConfigMapName       = "rook-crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
+	DeleteConfirmation       = "yes-really-destroy-data"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 60 * time.Minute
 	updateClusterInterval    = 30 * time.Second
@@ -899,10 +900,12 @@ func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster
 	return nil
 }
 
-func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {
+func (c *ClusterController) getPVsPresentInCluster(drivers []string, clusterID string) ([]v1.PersistentVolume, error) {
+	pvsInCluster := make([]v1.PersistentVolume, 0)
+
 	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to list PV")
+		return pvsInCluster, errors.Wrapf(err, "failed to list PV")
 	}
 
 	for _, p := range pv.Items {
@@ -914,13 +917,12 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 			//check PV is created by drivers deployed by rook
 			for _, d := range drivers {
 				if d == p.Spec.CSI.Driver {
-					return true, nil
+					pvsInCluster = append(pvsInCluster, p)
 				}
 			}
-
 		}
 	}
-	return false, nil
+	return pvsInCluster, nil
 }
 
 func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
@@ -929,16 +931,27 @@ func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster,
 	for {
 		logger.Infof("checking any PVC created by drivers %q and %q with clusterID %q", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
 		// check any PV is created in this cluster
-		attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
+		attachments, err := c.getPVsPresentInCluster(drivers, cluster.Namespace)
 		if err != nil {
 			return errors.Wrapf(err, "failed to list PersistentVolumes")
 		}
 		// no PVC created in this cluster
-		if !attachmentsExist {
+		if len(attachments) == 0 {
 			logger.Infof("no volume attachments for cluster %s", cluster.Namespace)
 			break
 		}
 
+		if cluster.Spec.CleanupPolicy.WipeDevices == DeleteConfirmation {
+			for _, attachment := range attachments {
+				// When the controller runtime lands, we should break on error and retry the next reconciliation pass.
+				// For now, the existing poll loop is appropriate.
+				err := c.context.Clientset.CoreV1().PersistentVolumes().Delete(attachment.Name, &metav1.DeleteOptions{})
+				if err != nil{
+					logger.Errorf("failed to delete persistent volume %q during deletion of cluster %q in namespace %q. %v",
+						attachment.Name, cluster.Name, cluster.Namespace, err)
+				}
+			}
+		}
 		retryCount++
 		if retryCount == clusterDeleteMaxRetries {
 			logger.Warningf(
@@ -1187,5 +1200,5 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 
 func hasCleanupPolicy(cephCluster *cephv1.CephCluster) bool {
 	policy := cephCluster.Spec.CleanupPolicy
-	return policy.DeleteDataDirOnHosts != ""
+	return policy.DeleteDataDirOnHosts != "" || policy.WipeDevices != ""
 }

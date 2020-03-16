@@ -161,6 +161,9 @@ spec:
                 deleteDataDirOnHosts:
                   type: string
                   pattern: ^$|^yes-really-destroy-data$
+                wipeDevices:
+                  type: string
+                  pattern: ^$|^yes-really-destroy-data$
             placement: {}
             resources: {}
   # somehow this is breaking the status, but let's keep this here so we don't forget it once we move to controller-runtime

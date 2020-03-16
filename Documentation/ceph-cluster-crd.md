@@ -154,8 +154,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
 * `cleanupPolicy`: The section for confirming that cluster data should be forcibly deleted. If the operator detects a non-empty value for any field in this section, the operator will not perform any orchestration on the cluster other than deletion. This ensures that this setting will not linger on a cluster and cause accidental data loss.
-  * `deleteDataDirOnHosts`: If `yes-really-destroy-data` the operator will automatically delete the hostpath of cluster nodes when a `delete cephcluster` command is issued.  
-
+  * `deleteDataDirOnHosts`: If `yes-really-destroy-data` the operator will automatically delete the hostpath of cluster nodes when a `delete cephcluster` command is issued.
+  * `wipeDevices`: If `yes-really-destroy-data` the operator will automatically delete all managed devices and the data they store. If active applications have mounted these devices, this may cause unpredictable behavior or panic.
 ### Ceph container images
 
 Official releases of Ceph Container images are available from [Docker Hub](https://hub.docker.com/r/ceph

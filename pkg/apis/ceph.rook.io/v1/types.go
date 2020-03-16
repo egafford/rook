@@ -550,4 +550,5 @@ type ClientSpec struct {
 
 type CleanupPolicySpec struct {
 	DeleteDataDirOnHosts string `json:"deleteDataDirOnHosts"`
+	WipeDevices          string `json:"wipeDevices"`
 }

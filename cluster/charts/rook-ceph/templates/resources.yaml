@@ -155,6 +155,9 @@ spec:
                 deleteDataDirOnHosts:
                   type: string
                   pattern: ^$|^yes-really-destroy-data$
+                wipeDevices:
+                  type: string
+                  pattern: ^$|^yes-really-destroy-data$
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string
